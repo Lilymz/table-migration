@@ -1,61 +1,22 @@
 package main
 
 import (
-	"fmt"
-	"github.com/sirupsen/logrus"
-	"reflect"
+	. "github.com/Lilymz/table-migration/v2/pkg/config"
+	. "github.com/Lilymz/table-migration/v2/pkg/model"
+	"github.com/Lilymz/table-migration/v2/pkg/service"
 )
-import . "github.com/Lilymz/table-migration/v2/pkg/config"
 
 func main() {
-	useLog()
-	fmt.Println("运行··")
-}
-func useLog() {
-	DaoLog.WithFields(logrus.Fields{
-		"animal": "walrus",
-		"size":   10,
-	}).Info("A group of walrus emerges from the ocean")
+	// 获取当前带迁移的表配置，用于决定开启多少个goroutine
+	func() {
+		if goroutineNum := len(MissionHolder); goroutineNum > 0 {
+			// 此处的2是热更新的mission和程序总开关
+			SYN_WAIT_GROUP.Add(goroutineNum + 2)
+		} else {
+			DaoLog.Fatal("mission goroutine create failed ,mission size:", goroutineNum)
+		}
+	}()
+	// 开启热加载
+	service.StartUpReload()
 
-	DaoLog.WithFields(logrus.Fields{
-		"omg":    true,
-		"number": 122,
-	}).Warn("The group's number increased tremendously!")
-	message := &SmsMessage{
-		Id:      "001",
-		Name:    "群发消息",
-		Content: "这是一条通知消息",
-	}
-	var printLog Print
-	printLog = message
-	printLog = printLog.(Print)
-	DaoLog.WithFields(printLog.toString()).Info("打印实体属性对象")
-	DaoLog.WithFields(logrus.Fields{
-		"omg":    true,
-		"number": 100,
-	}).Fatal("The ice breaks!")
-}
-
-type SmsMessage struct {
-	Id      string
-	Name    string
-	Content string
-}
-
-func (sms *SmsMessage) toString() map[string]interface{} {
-	fields := make(map[string]interface{}, 8)
-	v := reflect.ValueOf(sms).Elem()
-	t := v.Type()
-
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		fieldName := t.Field(i).Name
-		fieldValue := field.Interface()
-		fields[fieldName] = fieldValue
-	}
-	return fields
-}
-
-type Print interface {
-	toString() map[string]interface{}
 }
