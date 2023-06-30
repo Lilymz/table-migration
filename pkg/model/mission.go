@@ -23,7 +23,7 @@ const (
 )
 
 // New 迁移构构造器
-func (mission *Mission) New(dataBase, sourceTable, targetTable, condition, step, primaryKey string, status int) *Mission {
+func (mission Mission) New(dataBase string, sourceTable string, targetTable string, condition string, step string, primaryKey string, status int) *Mission {
 	return &Mission{
 		DataBase:    dataBase,
 		SourceTable: sourceTable,
@@ -36,7 +36,7 @@ func (mission *Mission) New(dataBase, sourceTable, targetTable, condition, step,
 }
 
 // MissionHolder 迁移配置持有容器
-var MissionHolder map[string]Mission
+var MissionHolder map[string]*Mission
 
 func GetMigrationPath() string {
 	path, _ := os.Getwd()

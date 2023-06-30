@@ -1,13 +1,23 @@
 package service
 
 import (
-	"fmt"
 	"github.com/Lilymz/table-migration/v2/pkg/config"
 	"github.com/Lilymz/table-migration/v2/pkg/model"
 	"gopkg.in/ini.v1"
 	"strconv"
 	"time"
 )
+
+const ITEM = "item"
+const DATA_BASE = ".dataBase"
+const SOURCE_TABLE = ".sourceTable"
+const TARGET_TABLE = ".targetTable"
+const CONDITION = ".condition"
+const STEP = ".step"
+const PRIMARY_KEY = ".primaryKey"
+const STATUS = ".status"
+const DEFAULT = "default"
+const MSSION = "mission"
 
 // 这个用于处理热加载migration.ini 当文件发生变动时触发实时更新
 // 1.首次初始化所定义的配置，初始化数据放入到MissionHolder中
@@ -30,67 +40,60 @@ func StartUpReload() {
 
 func LoadIni() {
 	// 解析配置文件
-	//migrationPath := model.GetMigrationPath()
-	if migrationIni, err := ini.Load("E:\\goland\\table-migration\\configs\\migration.ini"); err == nil {
-		mission := migrationIni.Section("mission")
-		sectionDefault := migrationIni.Section("default")
-		defaultDataBase := sectionDefault.Key("dataBase").Value()
+	// todo 后续打包需要换回来 migrationPath := model.GetMigrationPath()
+	holderMap := make(map[string]*model.Mission, 8)
+	if missionConfig, err := ini.Load("E:\\goland\\table-migration\\configs\\migration.ini"); err == nil {
+		defaultSection := missionConfig.Section(DEFAULT)
+		defaultDataBase := defaultSection.Key("dataBase").Value()
+		missionSection := missionConfig.Section(MSSION)
 		var index int
 		for {
-			sourceTableKey := "item" + strconv.Itoa(index) + ".sourceTable"
-			if !mission.HasKey(sourceTableKey) {
+			sourceTableKey := ITEM + strconv.Itoa(index) + SOURCE_TABLE
+			if !missionSection.HasKey(sourceTableKey) {
 				break
 			}
-			var dataBase, sourceTable, targetTable, condition, step, primary, status string
-			dataBaseKey := "item" + strconv.Itoa(index) + ".dataBase"
-			targetTableKey := "item" + strconv.Itoa(index) + ".targetTable"
-			conditionKey := "item" + strconv.Itoa(index) + ".condition"
-			stepKey := "item" + strconv.Itoa(index) + ".step"
-			primaryKey := "item" + strconv.Itoa(index) + ".primaryKey"
-			statusKey := "item" + strconv.Itoa(index) + ".status"
-			if mission.HasKey(dataBaseKey) {
-				dataBase = mission.Key(dataBaseKey).Value()
-				if dataBase == "" {
-					dataBase = defaultDataBase
-				}
+			mission, result, key := productMissionByConfig(missionSection, index, defaultDataBase)
+			if !result {
+				config.DaoLog.Warn(ITEM + strconv.Itoa(index) + " product mission config failed")
+				index++
+				continue
 			}
-			if mission.HasKey(sourceTableKey) {
-				sourceTable = mission.Key(sourceTableKey).Value()
-			}
-			if mission.HasKey(targetTableKey) {
-				targetTable = mission.Key(targetTableKey).Value()
-				if targetTable == "" {
-					targetTable = targetTableKey + "_" + time.Now().Format("20060102")
-				}
-			}
-			if mission.HasKey(conditionKey) {
-				condition = mission.Key(conditionKey).Value()
-			}
-			if mission.HasKey(stepKey) {
-				step = mission.Key(stepKey).Value()
-				if step == "" {
-					step = "1000"
-				}
-			}
-			if mission.HasKey(primaryKey) {
-				primary = mission.Key(primaryKey).Value()
-				if primary == "" {
-					primary = "sn"
-				}
-			}
-			if mission.HasKey(dataBaseKey) {
-				dataBase = mission.Key(dataBaseKey).Value()
-				if dataBase == "" {
-					dataBase = defaultDataBase
-				}
-			}
+			holderMap[key] = mission
 			index++
-			//model.Mission.New()
 		}
-
+		model.MissionHolder = holderMap
+		for key, value := range model.MissionHolder {
+			config.DaoLog.Info("待迁移表："+key, value)
+		}
 	} else {
-		fmt.Println(err)
 		config.DaoLog.Fatal("migration.ini load failed,err:", err.Error())
 	}
+}
 
+func productMissionByConfig(section *ini.Section, index int, defaultDataBase string) (*model.Mission, bool, string) {
+	var (
+		dataBase, sourceTable, targetTable, condition, step, primaryKey, status string
+	)
+	dataBase = section.Key(ITEM + strconv.Itoa(index) + DATA_BASE).Value()
+	if "" == dataBase {
+		dataBase = defaultDataBase
+	}
+	sourceTable = section.Key(ITEM + strconv.Itoa(index) + SOURCE_TABLE).Value()
+	if "" == sourceTable {
+		config.DaoLog.Warn(ITEM + strconv.Itoa(index) + "product failed missing sourceTable!")
+		return nil, true, ""
+	}
+	targetTable = section.Key(ITEM + strconv.Itoa(index) + TARGET_TABLE).Value()
+	if "" == targetTable {
+		targetTable = sourceTable + "_" + time.Now().Format("20060102")
+	}
+	condition = section.Key(ITEM + strconv.Itoa(index) + CONDITION).Value()
+	step = section.Key(ITEM + strconv.Itoa(index) + STEP).Value()
+	primaryKey = section.Key(ITEM + strconv.Itoa(index) + PRIMARY_KEY).Value()
+	// todo 此处如果primaryKey为空需要通过数据库获取某张表得主键
+	status = section.Key(ITEM + strconv.Itoa(index) + STATUS).Value()
+	if "" == status {
+		status = "0"
+	}
+	return model.Mission.New(model.Mission{}, dataBase, sourceTable, targetTable, condition, step, primaryKey, 0), true, sourceTable
 }
