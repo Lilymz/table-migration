@@ -17,7 +17,7 @@ const STEP = ".step"
 const PRIMARY_KEY = ".primaryKey"
 const STATUS = ".status"
 const DEFAULT = "default"
-const MSSION = "mission"
+const MISSION = "mission"
 
 // 这个用于处理热加载migration.ini 当文件发生变动时触发实时更新
 // 1.首次初始化所定义的配置，初始化数据放入到MissionHolder中
@@ -25,7 +25,7 @@ const MSSION = "mission"
 
 func StartUpReload() {
 	LoadIni()
-	go func() {
+	Go(func() {
 		for {
 			load, _ := ini.Load("E:\\goland\\table-migration\\configs\\system.ini")
 			section := load.Section("system")
@@ -38,8 +38,8 @@ func StartUpReload() {
 		}
 		model.SYN_WAIT_GROUP.Done()
 		config.DaoLog.Info("程序总控制协程开关关闭...")
-	}()
-	go func() {
+	})
+	Go(func() {
 		for model.PROCESS_SWTICH {
 			load, err := ini.Load("E:\\goland\\table-migration\\configs\\system.ini")
 			section := load.Section("system")
@@ -57,7 +57,7 @@ func StartUpReload() {
 		}
 		model.SYN_WAIT_GROUP.Done()
 		config.DaoLog.Info("迁移表配置热加载关闭...")
-	}()
+	})
 }
 
 func LoadIni() {
@@ -67,7 +67,7 @@ func LoadIni() {
 	if missionConfig, err := ini.Load("E:\\goland\\table-migration\\configs\\migration.ini"); err == nil {
 		defaultSection := missionConfig.Section(DEFAULT)
 		defaultDataBase := defaultSection.Key("dataBase").Value()
-		missionSection := missionConfig.Section(MSSION)
+		missionSection := missionConfig.Section(MISSION)
 		var index int
 		for {
 			sourceTableKey := ITEM + strconv.Itoa(index) + SOURCE_TABLE
