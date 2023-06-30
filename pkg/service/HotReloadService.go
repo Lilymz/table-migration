@@ -25,17 +25,39 @@ const MSSION = "mission"
 
 func StartUpReload() {
 	LoadIni()
-	//
 	go func() {
+		for {
+			load, _ := ini.Load("E:\\goland\\table-migration\\configs\\system.ini")
+			section := load.Section("system")
+			isRunning, _ := section.Key("process.switch").Bool()
+			model.PROCESS_SWTICH = isRunning
+			if !isRunning {
+				break
+			}
+			time.Sleep(time.Minute)
+		}
 		model.SYN_WAIT_GROUP.Done()
+		config.DaoLog.Info("程序总控制协程开关关闭...")
 	}()
 	go func() {
 		for model.PROCESS_SWTICH {
-
+			load, err := ini.Load("E:\\goland\\table-migration\\configs\\system.ini")
+			section := load.Section("system")
+			// 读取系统中的配置间隔配置更新热加载
+			internalTime := 30
+			if err == nil {
+				timeStep, err := section.Key("reload.interval").Int()
+				if err != nil {
+					return
+				}
+				internalTime = timeStep
+			}
+			time.Sleep(time.Duration(internalTime) * time.Second)
+			LoadIni()
 		}
 		model.SYN_WAIT_GROUP.Done()
+		config.DaoLog.Info("迁移表配置热加载关闭...")
 	}()
-
 }
 
 func LoadIni() {
@@ -69,7 +91,6 @@ func LoadIni() {
 		config.DaoLog.Fatal("migration.ini load failed,err:", err.Error())
 	}
 }
-
 func productMissionByConfig(section *ini.Section, index int, defaultDataBase string) (*model.Mission, bool, string) {
 	var (
 		dataBase, sourceTable, targetTable, condition, step, primaryKey, status string

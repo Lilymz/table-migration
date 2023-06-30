@@ -1,6 +1,9 @@
 package main
 
-import "github.com/Lilymz/table-migration/v2/pkg/service"
+import (
+	"github.com/Lilymz/table-migration/v2/pkg/model"
+	"github.com/Lilymz/table-migration/v2/pkg/service"
+)
 
 func main() {
 	// 获取当前带迁移的表配置，用于决定开启多少个goroutine
@@ -13,7 +16,7 @@ func main() {
 	//	}
 	//}()
 	//// 开启热加载
-	//service.StartUpReload()
-	service.LoadIni()
-
+	model.SYN_WAIT_GROUP.Add(2)
+	service.StartUpReload()
+	model.SYN_WAIT_GROUP.Wait()
 }
